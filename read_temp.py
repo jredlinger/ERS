@@ -31,17 +31,22 @@ timestamp = time.time()
 
 connection = sqlite3.connect("temps.db")
 cursor = connection.cursor()
-tables = cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='readings';").fetchall()
+tables = cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND (name='readings' OR name='settings');").fetchall()
 if len(tables) == 0 :
-        cursor.execute("CREATE TABLE readings (label, value, timestamp)")
+        exec python setup.py
+
+last_sequence = cursor.execute("SELECT value FROM settings WHERE setting='last_sequence';").fetchone()
+if last_sequence >= 2147483648 #2^31
+        last_sequence = 0
 
 # Note that sometimes you won't get a reading and
 # the results will be null (because Linux can't
 # guarantee the timing of calls to read the sensor).  
 # If this happens try again!
 if humidity is not None and temperature is not None:
-        cursor.execute("INSERT INTO readings VALUES (?,?,?);", ("Temperature", temperature, timestamp))
-        cursor.execute("INSERT INTO readings VALUES (?,?,?);", ("Humidity", humidity, timestamp))
+        cursor.execute("INSERT INTO readings VALUES (?,?,?,?);", ("Temperature", temperature, timestamp, last_sequence+1))
+        cursor.execute("INSERT INTO readings VALUES (?,?,?,?);", ("Humidity", humidity, timestamp, last_sequence+2))
+        cursor.execute("INSERT INTO settings VALUES (?,?);", ("last_sequence", last_sequence+2))
 	print 'Temp={0:0.1f}*  Humidity={1:0.1f}%'.format(temperature, humidity)
 else:
 	print 'Failed to get reading. Try again!'
